@@ -40,6 +40,7 @@ export function safeMerge(saved) {
     bodyMetrics:  Array.isArray(saved.bodyMetrics)  ? saved.bodyMetrics  : [],
     journal:      (saved.journal && typeof saved.journal === "object") ? saved.journal : {},
     achievements: (saved.achievements && typeof saved.achievements === "object") ? saved.achievements : {},
+    scratchpad:   typeof saved.scratchpad === "string" ? saved.scratchpad : "",
     ui: (saved.ui && typeof saved.ui === "object")
       ? {
           sidebarCollapsed: !!saved.ui.sidebarCollapsed,

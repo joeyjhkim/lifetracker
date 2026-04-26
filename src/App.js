@@ -24,7 +24,7 @@ import {
   ExpenseModal, IncomeModal, TaskModal, GoalModal,
   EffortModal, RoutineModal, ConfirmModal,
   BudgetModal, RecurringModal, CommandPalette,
-  GymExerciseModal, BodyMetricModal, ThemeModal,
+  GymExerciseModal, BodyMetricModal, ThemeModal, ScratchpadModal,
 } from "./modals";
 
 const NAV = [
@@ -221,6 +221,7 @@ export default function App() {
         shakes:    todayMealLog.shakes || 0,
       },
       tasks: { today: todayList, week: weekList, month: monthList },
+      scratchpad: data.scratchpad || "",
     });
   }, [loaded, data]);
 
@@ -554,6 +555,11 @@ export default function App() {
     saveColors: (colors) => {
       upd(d => ({ ...d, ui: { ...(d.ui || {}), colors } }));
     },
+    saveScratchpad: (html) => {
+      // Cap at ~500KB to prevent runaway state. Plenty for plain notes.
+      const safe = typeof html === "string" && html.length < 500_000 ? html : "";
+      upd(d => ({ ...d, scratchpad: safe }));
+    },
     resetColors: () => {
       upd(d => ({ ...d, ui: { ...(d.ui || {}), colors: { bg: null, text: null } } }));
     },
@@ -663,7 +669,7 @@ export default function App() {
         <div style={{ height: 28, WebkitAppRegion: "drag", marginBottom: 8 }} />
 
         {/* Theme toggle — top-left corner */}
-        <div style={{ WebkitAppRegion: "no-drag", marginBottom: 14, display: "flex", gap: 6, justifyContent: sidebarCollapsed ? "center" : "flex-start" }}>
+        <div style={{ WebkitAppRegion: "no-drag", marginBottom: 14, display: "flex", gap: 6, flexWrap: "wrap", justifyContent: sidebarCollapsed ? "center" : "flex-start" }}>
           <button className="theme-toggle" onClick={actions.toggleTheme}
             title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
             <span style={{ fontSize: 14 }}>{isDark ? "☀" : "☾"}</span>
@@ -673,6 +679,11 @@ export default function App() {
             title="Customize colors">
             <span style={{ fontSize: 14 }}>🎨</span>
             {!sidebarCollapsed && <span style={{ fontSize: 11, letterSpacing: 1 }}>COLORS</span>}
+          </button>
+          <button className="theme-toggle" onClick={() => setModal({ type: "scratchpad" })}
+            title="Open scratchpad / sticky notes">
+            <span style={{ fontSize: 14 }}>📝</span>
+            {!sidebarCollapsed && <span style={{ fontSize: 11, letterSpacing: 1 }}>NOTES</span>}
           </button>
         </div>
 
@@ -852,6 +863,11 @@ export default function App() {
               <ThemeModal current={data.ui?.colors || {}}
                 onSave={c => actions.saveColors(c)}
                 onReset={() => actions.resetColors()}
+                onClose={() => setModal(null)} />
+            )}
+            {modal.type === "scratchpad" && (
+              <ScratchpadModal initial={data.scratchpad || ""}
+                onSave={(html) => actions.saveScratchpad(html)}
                 onClose={() => setModal(null)} />
             )}
           </div>

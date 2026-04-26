@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('menuAPI', {
   deleteTask:     (payload) => ipcRenderer.send('menu:deleteTask', payload),
   addTask:        (payload) => ipcRenderer.send('menu:addTask', payload),
   editTaskNotes:  (payload) => ipcRenderer.send('menu:editTaskNotes', payload),
+  saveScratchpad: (html)    => ipcRenderer.send('menu:saveScratchpad', html),
   quitApp:        ()        => ipcRenderer.send('menu:quit'),
   onStats:        (cb)      => ipcRenderer.on('menu:stats', (_e, s) => cb(s)),
 });

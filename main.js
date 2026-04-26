@@ -356,6 +356,7 @@ function refreshTrayFromDisk(data) {
       shakes:    mealLog.shakes || 0,
     },
     tasks: trayTasks,
+    scratchpad: typeof data.scratchpad === 'string' ? data.scratchpad : '',
   };
   rebuildTrayMenu();
 }
@@ -395,6 +396,10 @@ function quickSaveFromTray(type, payload) {
         list[idx] = { ...list[idx], notes: typeof payload.notes === 'string' ? payload.notes : '' };
         data.tasks[payload.period] = list;
       }
+    } else if (type === 'scratchpad') {
+      // Cap at 500KB so a runaway tray editor can't blow up the data file.
+      const html = typeof payload.html === 'string' && payload.html.length < 500_000 ? payload.html : '';
+      data.scratchpad = html;
     } else if (type === 'taskAdd') {
       if (!data.tasks) data.tasks = { daily: [], weekly: [], monthly: [] };
       const period = payload.period || 'daily';
@@ -524,6 +529,7 @@ ipcMain.on('menu:toggleTask', (_e, payload) => quickSaveFromTray('taskToggle', p
 ipcMain.on('menu:deleteTask', (_e, payload) => quickSaveFromTray('taskDelete', payload));
 ipcMain.on('menu:addTask',    (_e, payload) => quickSaveFromTray('taskAdd',    payload));
 ipcMain.on('menu:editTaskNotes', (_e, payload) => quickSaveFromTray('taskEditNotes', payload));
+ipcMain.on('menu:saveScratchpad', (_e, html) => quickSaveFromTray('scratchpad', { html }));
 ipcMain.on('menu:quit',      () => { forceQuit(); });
 
 // ── Popup windows — small frameless forms anchored near the tray ─────────────

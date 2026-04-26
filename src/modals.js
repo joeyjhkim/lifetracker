@@ -746,3 +746,74 @@ export function ThemeModal({ current, onSave, onReset, onClose }) {
     </>
   );
 }
+
+// ─── SCRATCHPAD ──────────────────────────────────────────────────────────────
+// Free-form rich-text notes — bold, italic, font size. Persists in
+// data.scratchpad as HTML. document.execCommand is deprecated but works
+// reliably in Electron's Chromium and avoids pulling in a rich-text library.
+export function ScratchpadModal({ initial, onSave, onClose }) {
+  const editorRef = useRef(null);
+
+  // Load initial HTML once on mount. Don't make this a controlled value —
+  // contentEditable + React state fights with caret positioning.
+  useEffect(() => {
+    if (editorRef.current) editorRef.current.innerHTML = initial || "";
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const exec = (cmd, value) => {
+    document.execCommand(cmd, false, value);
+    editorRef.current?.focus();
+  };
+
+  // Save on every input event — debounced 400ms via the parent's useAutoSave
+  // anyway, so this is cheap.
+  const handleInput = () => {
+    if (editorRef.current) onSave(editorRef.current.innerHTML);
+  };
+
+  const btn = {
+    background: "var(--bg-input)", border: "1px solid var(--border-strong)",
+    color: "var(--text)", borderRadius: 6, padding: "5px 10px",
+    fontFamily: "'Playfair Display', serif", fontSize: 12,
+    cursor: "pointer", minWidth: 32,
+  };
+
+  return (
+    <>
+      <ModalHeader title="SCRATCHPAD" onClose={onClose} />
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+        <button type="button" style={{ ...btn, fontWeight: 900 }} onMouseDown={e => { e.preventDefault(); exec("bold"); }}>B</button>
+        <button type="button" style={{ ...btn, fontStyle: "italic" }} onMouseDown={e => { e.preventDefault(); exec("italic"); }}>I</button>
+        <button type="button" style={{ ...btn, textDecoration: "underline" }} onMouseDown={e => { e.preventDefault(); exec("underline"); }}>U</button>
+        <span style={{ width: 1, background: "var(--border)", margin: "0 4px" }} />
+        <button type="button" style={btn} onMouseDown={e => { e.preventDefault(); exec("fontSize", "2"); }} title="Small">A−</button>
+        <button type="button" style={btn} onMouseDown={e => { e.preventDefault(); exec("fontSize", "4"); }} title="Medium">A</button>
+        <button type="button" style={{ ...btn, fontSize: 16 }} onMouseDown={e => { e.preventDefault(); exec("fontSize", "6"); }} title="Large">A+</button>
+        <span style={{ width: 1, background: "var(--border)", margin: "0 4px" }} />
+        <button type="button" style={btn} onMouseDown={e => { e.preventDefault(); exec("insertUnorderedList"); }} title="Bullet list">•</button>
+        <button type="button" style={btn} onMouseDown={e => { e.preventDefault(); exec("removeFormat"); }} title="Clear formatting">⌧</button>
+      </div>
+
+      <div
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={handleInput}
+        spellCheck={true}
+        style={{
+          minHeight: 320, maxHeight: 500, overflowY: "auto",
+          background: "var(--bg-input)", border: "1px solid var(--border-strong)",
+          borderRadius: 10, padding: "14px 18px",
+          fontFamily: "'Source Serif 4', serif", fontSize: 14, lineHeight: 1.55,
+          color: "var(--text)", outline: "none", whiteSpace: "pre-wrap",
+        }}
+      />
+
+      <div style={{ marginTop: 10, fontSize: 10, opacity: 0.55, fontFamily: "'Source Serif 4', serif" }}>
+        Auto-saves as you type. Persists across restarts.
+      </div>
+    </>
+  );
+}
+

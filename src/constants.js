@@ -97,6 +97,7 @@ export const DEFAULTS = {
   journal: {},         // { "YYYY-MM-DD": { mood: 1-5, note: "" } }
   achievements: {},    // { achievementId: "YYYY-MM-DD earned on" }
   ui: { sidebarCollapsed: false, notifications: false, tasksView: "list", colors: { bg: null, text: null } },
+  scratchpad: "",   // free-form rich-text notes (HTML); persists across restarts
 };
 
 // Mood scale used by the Dashboard journal widget.

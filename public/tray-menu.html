@@ -92,6 +92,31 @@
     font-size: 10px; opacity: 0.55; margin-top: 3px;
     font-family: 'Source Serif 4', serif;
   }
+
+  /* Scratchpad inline editor */
+  .sp-toolbar {
+    display: flex; gap: 4px; flex-wrap: wrap; align-items: center;
+    margin-bottom: 6px;
+  }
+  .sp-btn {
+    background: var(--bg-panel); border: 1px solid var(--border-strong);
+    color: var(--text); border-radius: 5px; padding: 3px 7px;
+    font-family: 'Playfair Display', serif; font-size: 11px;
+    cursor: pointer; min-width: 24px; line-height: 1.2;
+  }
+  .sp-btn:hover { background: var(--bg-raised); border-color: var(--accent); }
+  .sp-sep { width: 1px; height: 16px; background: var(--border); margin: 0 2px; }
+  .sp-editor {
+    min-height: 90px; max-height: 220px; overflow-y: auto;
+    background: var(--bg-panel); border: 1px solid var(--border-strong);
+    border-radius: 6px; padding: 8px 10px;
+    font-family: 'Source Serif 4', serif; font-size: 12px; line-height: 1.5;
+    color: var(--text); outline: none; white-space: pre-wrap;
+  }
+  .sp-editor:focus { border-color: var(--accent); }
+  .sp-editor:empty::before {
+    content: 'Quick notes here…'; opacity: 0.45; pointer-events: none;
+  }
   .task-badge {
     font-size: 9px; letter-spacing: 0.5px; font-weight: 700; font-family: 'Source Serif 4', serif;
     padding: 2px 7px; border-radius: 10px; background: var(--bg-chip);
@@ -389,6 +414,28 @@
 
   <div class="divider"></div>
 
+  <!-- Scratchpad — quick rich-text notes that persist across restarts -->
+  <div class="section">
+    <div class="header" style="display: flex; align-items: center; gap: 6px;">
+      <span>Scratchpad</span>
+      <span id="sp-saved" style="font-size: 9px; opacity: 0; transition: opacity 0.2s;">saved ✓</span>
+    </div>
+    <div class="sp-toolbar">
+      <button class="sp-btn" data-cmd="bold" title="Bold (⌘B)" style="font-weight: 900;">B</button>
+      <button class="sp-btn" data-cmd="italic" title="Italic (⌘I)" style="font-style: italic;">I</button>
+      <button class="sp-btn" data-cmd="underline" title="Underline" style="text-decoration: underline;">U</button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn" data-cmd="fontSize" data-arg="2" title="Small">A−</button>
+      <button class="sp-btn" data-cmd="fontSize" data-arg="4" title="Medium">A</button>
+      <button class="sp-btn" data-cmd="fontSize" data-arg="6" title="Large" style="font-size: 14px;">A+</button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn" data-cmd="removeFormat" title="Clear formatting">⌧</button>
+    </div>
+    <div id="sp-editor" class="sp-editor" contenteditable="true" spellcheck="true"></div>
+  </div>
+
+  <div class="divider"></div>
+
   <!-- Quick actions — 3x2 grid -->
   <div class="section">
     <div class="header">Quick Log</div>
@@ -436,6 +483,40 @@
     btn.onclick = () => window.menuAPI.logMeal(btn.dataset.meal);
   });
 
+  // ── Scratchpad ────────────────────────────────────────────────────────────
+  // Free-form rich-text notes, persists in data.scratchpad. Saves on blur.
+  const spEditor = document.getElementById('sp-editor');
+  const spSaved = document.getElementById('sp-saved');
+  let spLastSaved = '';
+  let spSavedHintTimer = null;
+
+  // Toolbar buttons. onMouseDown + preventDefault stops focus loss from the
+  // editor, so execCommand applies to the current selection.
+  document.querySelectorAll('.sp-btn').forEach(btn => {
+    btn.onmousedown = (e) => {
+      e.preventDefault();
+      const cmd = btn.dataset.cmd;
+      const arg = btn.dataset.arg;
+      document.execCommand(cmd, false, arg);
+      spEditor.focus();
+    };
+  });
+
+  // Save on blur (when user clicks elsewhere) — only if content changed.
+  spEditor.addEventListener('blur', () => {
+    const html = spEditor.innerHTML;
+    if (html !== spLastSaved) {
+      window.menuAPI.saveScratchpad(html);
+      spLastSaved = html;
+      // Brief "saved ✓" indicator next to the section header.
+      if (spSaved) {
+        spSaved.style.opacity = '1';
+        clearTimeout(spSavedHintTimer);
+        spSavedHintTimer = setTimeout(() => { spSaved.style.opacity = '0'; }, 1500);
+      }
+    }
+  });
+
   // Quick action buttons.
   document.querySelectorAll('[data-action]').forEach(btn => {
     btn.onclick = () => window.menuAPI.openPopup(btn.dataset.action);
@@ -470,6 +551,16 @@
 
     // Tasks
     renderTasks(s.tasks || []);
+
+    // Scratchpad — only update DOM if user isn't currently typing in it,
+    // otherwise we'd clobber their unsaved input mid-edit.
+    if (document.activeElement !== spEditor) {
+      const html = s.scratchpad || '';
+      if (html !== spEditor.innerHTML) {
+        spEditor.innerHTML = html;
+        spLastSaved = html;
+      }
+    }
   }
 
   // Persisted expanded/collapsed state for each section.
