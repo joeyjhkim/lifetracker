@@ -1,0 +1,76 @@
+{
+  "name": "lifetracker-chronicles",
+  "version": "1.0.0",
+  "description": "Personal life tracker",
+  "main": "main.js",
+  "author": "LifeTracker",
+  "license": "MIT",
+  "scripts": {
+    "start": "react-scripts build && electron .",
+    "build:mac": "react-scripts build && electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.lifetracker.chronicles.v2",
+    "productName": "LifeTracker Chronicles",
+    "extends": null,
+    "afterPack": "scripts/afterPack.js",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "public/icon.png",
+      "identity": null
+    },
+    "dmg": {
+      "writeUpdateInfo": false,
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "files": [
+      "build/**/*",
+      "main.js",
+      "preload.js",
+      "tray-preload.js",
+      "tray-menu-preload.js",
+      "public/icon.png",
+      "public/trayTemplate.png",
+      "public/trayTemplate@2x.png",
+      "node_modules/**/*"
+    ],
+    "extraResources": [],
+    "directories": {
+      "buildResources": "public",
+      "output": "dist"
+    }
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1"
+  },
+  "devDependencies": {
+    "electron": "^41.2.2",
+    "electron-builder": "^24.0.0"
+  },
+  "homepage": "./",
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

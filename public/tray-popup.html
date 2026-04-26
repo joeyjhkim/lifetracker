@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quick Log</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400&display=swap');
+  :root {
+    --bg: #f5f0e8; --bg-panel: #ede8de; --bg-input: #e8e2d8; --bg-chip: #e0d8c8;
+    --border: #d0c8b8; --border-strong: #c8bfaa; --text: #1a1a1a; --text-inv: #f5f0e8;
+    --accent: #5a4a2a; --good: #4a6b47; --track: #d0c8b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Playfair Display', Georgia, serif; background: var(--bg);
+    color: var(--text); padding: 20px 22px; -webkit-app-region: drag;
+    border-radius: 14px; overflow: hidden;
+  }
+  h2 { font-size: 11px; letter-spacing: 2.5px; font-weight: 700; margin-bottom: 18px; text-transform: uppercase; }
+  .close-btn {
+    position: absolute; top: 12px; right: 14px; background: none; border: none;
+    font-size: 16px; cursor: pointer; opacity: 0.4; -webkit-app-region: no-drag; color: var(--text);
+  }
+  .close-btn:hover { opacity: 1; }
+  label { display: block; font-size: 10px; letter-spacing: 2px; margin-bottom: 5px; opacity: 0.6; }
+  input, select {
+    font-family: 'Source Serif 4', serif; background: var(--bg-input); border: 1px solid var(--border-strong);
+    color: var(--text); padding: 8px 12px; border-radius: 8px; width: 100%; font-size: 13px;
+    outline: none; -webkit-app-region: no-drag;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  .field { margin-bottom: 12px; }
+  .row { display: grid; gap: 10px; }
+  .row-2 { grid-template-columns: 1fr 1fr; }
+  .row-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .quick-row { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; -webkit-app-region: no-drag; }
+  .quick-btn {
+    background: var(--bg-chip); border: 1px solid var(--border-strong); color: var(--text);
+    padding: 7px 14px; border-radius: 7px; font-size: 12px; cursor: pointer;
+    font-family: 'Playfair Display', serif; -webkit-app-region: no-drag;
+  }
+  .quick-btn:hover { border-color: var(--accent); }
+  .quick-btn.on { background: var(--text); color: var(--text-inv); border-color: var(--text); }
+  .submit-btn {
+    background: var(--text); color: var(--text-inv); border: none; padding: 10px;
+    border-radius: 9px; font-size: 12px; letter-spacing: 1px; font-weight: 700;
+    width: 100%; cursor: pointer; font-family: 'Playfair Display', serif;
+    -webkit-app-region: no-drag; margin-top: 6px;
+  }
+  .submit-btn:hover { filter: brightness(1.15); }
+  .submit-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .success {
+    display: none; text-align: center; padding: 40px 20px;
+    font-family: 'Source Serif 4', serif; font-size: 14px;
+  }
+  .success .check { font-size: 36px; margin-bottom: 10px; color: var(--good); }
+</style>
+</head>
+<body>
+  <button class="close-btn" onclick="window.close()">✕</button>
+
+  <!-- EXPENSE -->
+  <div id="form-expense" class="form" style="display:none">
+    <h2>Quick Expense</h2>
+    <div class="field"><label>AMOUNT ($)</label><input type="number" id="exp-amount" step="0.01" min="0" placeholder="0.00" autofocus></div>
+    <div class="field"><label>CATEGORY</label>
+      <select id="exp-cat">
+        <option>🍔 Food & Drink</option><option>🛒 Groceries</option><option>🏠 Housing</option>
+        <option>🚗 Transport</option><option>💊 Health</option><option>🎮 Entertainment</option>
+        <option>📚 Education</option><option>💼 Business</option><option>✈️ Travel</option>
+        <option>👗 Clothing</option><option>💡 Utilities</option><option>🌀 Other</option>
+      </select>
+    </div>
+    <div class="row row-2">
+      <div class="field"><label>DESCRIPTION</label><input id="exp-desc" placeholder="e.g. Lunch"></div>
+      <div class="field"><label>DATE</label><input type="date" id="exp-date"></div>
+    </div>
+    <button class="submit-btn" onclick="saveExpense()">Save Expense</button>
+  </div>
+
+  <!-- EFFORT -->
+  <div id="form-effort" class="form" style="display:none">
+    <h2>Quick Effort</h2>
+    <label>QUICK SELECT</label>
+    <div class="quick-row" id="effort-quick"></div>
+    <div class="field"><label>CUSTOM HOURS</label><input type="number" id="eff-hours" step="0.25" min="0.25" placeholder="e.g. 2.5"></div>
+    <div class="field"><label>WHAT DID YOU WORK ON?</label><input id="eff-note" placeholder="e.g. Deep work session"></div>
+    <button class="submit-btn" onclick="saveEffort()">Log Effort</button>
+  </div>
+
+  <!-- EXERCISE -->
+  <div id="form-exercise" class="form" style="display:none">
+    <h2>Quick Exercise</h2>
+    <div class="field"><label>BODY PART</label>
+      <select id="ex-part">
+        <option>Legs</option><option>Arms</option><option>Shoulders</option>
+        <option>Back</option><option>Chest</option><option>Abs</option>
+      </select>
+    </div>
+    <div class="field"><label>EXERCISE NAME</label><input id="ex-name" placeholder="e.g. Bench Press" autofocus></div>
+    <div class="row row-3">
+      <div class="field"><label>SETS</label><input type="number" id="ex-sets" min="1" step="1" placeholder="3"></div>
+      <div class="field"><label>REPS</label><input type="number" id="ex-reps" min="1" step="1" placeholder="10"></div>
+      <div class="field"><label>WEIGHT (lb)</label><input type="number" id="ex-weight" min="0" step="2.5" placeholder="135"></div>
+    </div>
+    <div class="field"><label>NOTES</label><input id="ex-notes" placeholder="Optional"></div>
+    <button class="submit-btn" onclick="saveExercise()">Log Exercise</button>
+  </div>
+
+  <!-- INCOME -->
+  <div id="form-income" class="form" style="display:none">
+    <h2>Quick Income</h2>
+    <div class="field"><label>AMOUNT ($)</label><input type="number" id="inc-amount" step="0.01" min="0" placeholder="0.00" autofocus></div>
+    <div class="field"><label>CATEGORY</label>
+      <select id="inc-cat">
+        <option>💼 Salary</option><option>🧾 Freelance</option><option>📈 Investment</option>
+        <option>🎁 Gift</option><option>🛍️ Sale</option><option>💡 Side Project</option>
+        <option>🌀 Other</option>
+      </select>
+    </div>
+    <div class="row row-2">
+      <div class="field"><label>DESCRIPTION</label><input id="inc-desc" placeholder="e.g. March paycheck"></div>
+      <div class="field"><label>DATE</label><input type="date" id="inc-date"></div>
+    </div>
+    <button class="submit-btn" onclick="saveIncome()">Save Income</button>
+  </div>
+
+  <!-- TASK -->
+  <div id="form-task" class="form" style="display:none">
+    <h2>Quick Task</h2>
+    <div class="field"><label>TITLE</label><input id="tk-title" placeholder="What needs to be done?" autofocus></div>
+    <div class="row row-2">
+      <div class="field"><label>PERIOD</label>
+        <select id="tk-period">
+          <option value="daily">Daily</option>
+          <option value="weekly" selected>Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+      </div>
+      <div class="field"><label>PRIORITY</label>
+        <select id="tk-priority">
+          <option value="low">Low</option>
+          <option value="medium" selected>Medium</option>
+          <option value="high">High</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>DEADLINE (OPTIONAL)</label><input type="date" id="tk-deadline"></div>
+    <div class="field"><label>REPEAT</label>
+      <select id="tk-repeat">
+        <option value="">No repeat</option>
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+        <option value="yearly">Yearly</option>
+      </select>
+    </div>
+    <button class="submit-btn" onclick="saveTask()">Save Task</button>
+  </div>
+
+  <!-- BODY METRIC -->
+  <div id="form-bodyMetric" class="form" style="display:none">
+    <h2>Quick Body Metric</h2>
+    <div class="row row-3">
+      <div class="field"><label>WEIGHT (lb)</label><input type="number" id="bm-weight" step="0.1" placeholder="170" autofocus></div>
+      <div class="field"><label>BODY FAT %</label><input type="number" id="bm-bf" step="0.1" placeholder="18"></div>
+      <div class="field"><label>WAIST (in)</label><input type="number" id="bm-waist" step="0.25" placeholder="32"></div>
+    </div>
+    <div class="row row-2">
+      <div class="field"><label>DATE</label><input type="date" id="bm-date"></div>
+      <div class="field"><label>NOTES</label><input id="bm-notes" placeholder="Optional"></div>
+    </div>
+    <button class="submit-btn" onclick="saveBodyMetric()">Log Metric</button>
+  </div>
+
+  <!-- SUCCESS -->
+  <div id="success" class="success">
+    <div class="check">✓</div>
+    <div id="success-msg">Saved!</div>
+  </div>
+
+<script>
+  const today = new Date().toISOString().split('T')[0];
+
+  // Determine which form to show from the URL hash.
+  const type = (location.hash || '#expense').replace('#', '');
+  const formEl = document.getElementById('form-' + type);
+  if (formEl) formEl.style.display = 'block';
+
+  // Set default dates.
+  const dateInputs = document.querySelectorAll('input[type="date"]');
+  dateInputs.forEach(i => { i.value = today; });
+
+  // Effort quick-select buttons.
+  const effortQuick = document.getElementById('effort-quick');
+  [0.5, 1, 1.5, 2, 3, 4].forEach(h => {
+    const btn = document.createElement('button');
+    btn.className = 'quick-btn';
+    btn.textContent = h + 'h';
+    btn.onclick = () => {
+      document.getElementById('eff-hours').value = h;
+      effortQuick.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+    };
+    effortQuick.appendChild(btn);
+  });
+
+  function showSuccess(msg) {
+    document.querySelectorAll('.form').forEach(f => f.style.display = 'none');
+    document.getElementById('success-msg').textContent = msg;
+    document.getElementById('success').style.display = 'block';
+    setTimeout(() => window.close(), 900);
+  }
+
+  async function saveExpense() {
+    const amount = parseFloat(document.getElementById('exp-amount').value);
+    if (!amount || amount <= 0) return;
+    const res = await window.popupAPI.quickSave({
+      type: 'expense',
+      payload: {
+        amount,
+        category: document.getElementById('exp-cat').value,
+        desc: document.getElementById('exp-desc').value.trim(),
+        date: document.getElementById('exp-date').value || today,
+      }
+    });
+    if (res.success) showSuccess('Expense saved ✓');
+  }
+
+  async function saveEffort() {
+    const hours = parseFloat(document.getElementById('eff-hours').value);
+    if (!hours || hours <= 0) return;
+    const res = await window.popupAPI.quickSave({
+      type: 'effort',
+      payload: {
+        hours,
+        note: document.getElementById('eff-note').value.trim(),
+      }
+    });
+    if (res.success) showSuccess('+' + hours + 'h saved ✓');
+  }
+
+  async function saveExercise() {
+    const name = document.getElementById('ex-name').value.trim();
+    const sets = parseInt(document.getElementById('ex-sets').value) || 0;
+    const reps = parseInt(document.getElementById('ex-reps').value) || 0;
+    if (!name || !sets || !reps) return;
+    const weight = document.getElementById('ex-weight').value;
+    const res = await window.popupAPI.quickSave({
+      type: 'exercise',
+      payload: {
+        part: document.getElementById('ex-part').value,
+        name,
+        sets,
+        reps,
+        weight: weight === '' ? null : parseFloat(weight),
+        notes: document.getElementById('ex-notes').value.trim(),
+      }
+    });
+    if (res.success) showSuccess(name + ' logged ✓');
+  }
+
+  async function saveIncome() {
+    const amount = parseFloat(document.getElementById('inc-amount').value);
+    if (!amount || amount <= 0) return;
+    const res = await window.popupAPI.quickSave({
+      type: 'income',
+      payload: {
+        amount,
+        category: document.getElementById('inc-cat').value,
+        desc: document.getElementById('inc-desc').value.trim(),
+        date: document.getElementById('inc-date').value || today,
+      }
+    });
+    if (res.success) showSuccess('Income saved ✓');
+  }
+
+  async function saveTask() {
+    const title = document.getElementById('tk-title').value.trim();
+    if (!title) return;
+    const res = await window.popupAPI.quickSave({
+      type: 'task',
+      payload: {
+        title,
+        period:   document.getElementById('tk-period').value,
+        priority: document.getElementById('tk-priority').value,
+        deadline: document.getElementById('tk-deadline').value || '',
+        repeat:   document.getElementById('tk-repeat').value || '',
+      }
+    });
+    if (res.success) showSuccess('Task saved ✓');
+  }
+
+  async function saveBodyMetric() {
+    const weight = document.getElementById('bm-weight').value;
+    const bf     = document.getElementById('bm-bf').value;
+    const waist  = document.getElementById('bm-waist').value;
+    if (!weight && !bf && !waist) return;
+    const res = await window.popupAPI.quickSave({
+      type: 'bodyMetric',
+      payload: {
+        date: document.getElementById('bm-date').value || today,
+        weight:  weight === '' ? null : parseFloat(weight),
+        bodyFat: bf     === '' ? null : parseFloat(bf),
+        waist:   waist  === '' ? null : parseFloat(waist),
+        notes: document.getElementById('bm-notes').value.trim(),
+      }
+    });
+    if (res.success) showSuccess('Body metric saved ✓');
+  }
+
+  // Close on Escape.
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') window.close(); });
+  // Submit on Enter (for single-input forms).
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const btn = document.querySelector('.form[style*="block"] .submit-btn');
+      if (btn) btn.click();
+    }
+  });
+</script>
+</body>
+</html>
