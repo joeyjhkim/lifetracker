@@ -1,14 +1,21 @@
 # LifeTracker Chronicles
 
-Local-only macOS productivity app. Electron + React. Tracks expenses, income, tasks, goals, gym, body metrics, journal/mood, daily-routine timers, streaks, and a gamified rank system. Free, offline, no accounts, no telemetry.
+> **Vault brief:** `~/Desktop/Joey's Vault/Projects/lifetracker/lifetracker.md` — has `Left off at` / `Next up` for resuming.
+> **Project memory:** `~/.claude/projects/-Users-joeykim-Documents-lifetracker/memory/` — reinstall workflow, minimal-changes feedback, bundle ID v2 reasoning.
+> **Sync protocol:** `~/.claude/rules/project-sync.md`.
+
+Local-only macOS productivity app. Electron + React. Tracks expenses, income, tasks, goals, gym, body metrics, journal/mood, daily-routine timers, streaks, a gamified rank system, and a free-form rich-text scratchpad. Free, offline, no accounts, no telemetry.
+
+**Public:** https://github.com/joeyjhkim/lifetracker (MIT-licensed, ad-hoc signed `.app`).
 
 ## Tech stack
 
-- Electron (main + 3 preloads, one per window)
+- Electron 41 (main + 3 preloads, one per window)
 - React 18 via react-scripts
 - CSS variables for theming (light/dark via `.dark` class)
 - Jest — **157 tests across 5 suites; keep green**
 - No TypeScript, no state-management lib, no extra build tooling
+- **`eslint-plugin-react-hooks` is NOT installed** — bare `// eslint-disable-next-line` comments work, but referencing specific rules like `react-hooks/exhaustive-deps` will fail the build silently (see gotcha #8)
 
 ## Commands
 
@@ -85,9 +92,17 @@ scripts/afterPack.js            # electron-builder hook — ad-hoc signs the .ap
 
 **7. Electron version.** Currently pinned to `^41.2.2` in package.json. The bump from 28 → 41 was needed for general compatibility with macOS 26; don't downgrade.
 
+**8. Silent React-build failures.** `react-scripts build` can fail (e.g. on an ESLint error in a comment — including unknown-rule disable comments) and `electron-builder` will then package whatever stale `build/` is already there, producing a `.app` that "looks fine" but actually contains the previous bundle. Symptom: app shows blank screen or pre-change behavior. Always pipe full build output and verify "Compiled successfully" before reinstall.
+
+**9. Time-zone-aware reset.** `App.js` runs a midnight timer that fires 5s after local midnight (always uses fresh `new Date()` so DST is handled). It re-runs `resetRecurringTasks(data.tasks)` so completed-yesterday tasks disappear from the tray and overdue counters tick. Don't add a competing timer — there should be one and only one.
+
+**10. Tray popover sync vs. user typing.** Both the tray's task notes editor and scratchpad section guard against destroying user input mid-edit. If a textarea inside the section has focus when a stats push arrives, that section's render is skipped. When you blur, auto-save fires and the next push lands cleanly. Don't remove these guards.
+
 ## Convention notes
 
-- Commits aren't made unless user asks (no git history currently)
-- No LICENSE file, no `.gitignore` (intentional — user hasn't published)
-- Ad-hoc code signing only (no Developer ID)
-- All files stay under 800 lines where possible; `main.js` is the main exception (~660 lines and largely inline)
+- Commits use generic `LifeTracker <lifetracker@local>` author identity to avoid leaking the user's real GitHub identity
+- `.gitignore` is in place (covers node_modules, build, dist, OS files, .claude/settings.local.json, env/secret patterns, log files, JSON exports)
+- `LICENSE` (MIT, dated 2026, copyright "LifeTracker Chronicles") is in place
+- Ad-hoc code signing only (no Developer ID; this is what the bundle ID `.v2` workaround is about)
+- All files stay under 800 lines where possible; `main.js` is the main exception (~700 lines and largely inline)
+- When the user says "push to GitHub": `git add -A && git commit -m "..." && git push -q origin main`. No PRs, single `main` branch.
