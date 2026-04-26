@@ -756,9 +756,10 @@ export function ScratchpadModal({ initial, onSave, onClose }) {
 
   // Load initial HTML once on mount. Don't make this a controlled value —
   // contentEditable + React state fights with caret positioning.
+  // eslint-disable-next-line
   useEffect(() => {
     if (editorRef.current) editorRef.current.innerHTML = initial || "";
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const exec = (cmd, value) => {
     document.execCommand(cmd, false, value);
