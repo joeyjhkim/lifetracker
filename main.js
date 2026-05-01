@@ -1,6 +1,178 @@
 const { app, BrowserWindow, ipcMain, dialog, screen, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const zlib = require('zlib');
+
+// ── Icon presets ─────────────────────────────────────────────────────────────
+// User-pickable shapes for the menu bar (tray) icon and the dock icon. Each
+// shape is a function on a 22-unit logical canvas — true means "filled pixel".
+// Generated as PNG buffers on demand. No bundled binaries.
+
+const ICON_PRESETS = {
+  bars: (x, y) => [
+    { x0: 3, x1: 5, y0: 12, y1: 19 },
+    { x0: 9, x1: 11, y0: 8, y1: 19 },
+    { x0: 15, x1: 17, y0: 4, y1: 19 },
+  ].some(b => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1),
+
+  dot: (x, y) => {
+    const dx = x - 10.5, dy = y - 10.5;
+    return dx * dx + dy * dy <= 7 * 7;
+  },
+
+  square: (x, y) => {
+    const onOuter = x >= 3 && x <= 19 && y >= 3 && y <= 19;
+    const inHole  = x >= 6 && x <= 16 && y >= 6 && y <= 16;
+    return onOuter && !inHole;
+  },
+
+  L: (x, y) =>
+    (x >= 4 && x <= 7  && y >= 3  && y <= 19) ||
+    (x >= 4 && x <= 17 && y >= 16 && y <= 19),
+
+  heart: (x, y) => {
+    // Two circles at top + downward triangle
+    const c1 = (x - 7) * (x - 7) + (y - 9) * (y - 9) <= 16;
+    const c2 = (x - 14) * (x - 14) + (y - 9) * (y - 9) <= 16;
+    if (c1 || c2) return true;
+    if (y < 9 || y > 19) return false;
+    const t = (y - 9) / 10;
+    const left  = 3 + t * 7.5;
+    const right = 18 - t * 7.5;
+    return x >= left && x <= right;
+  },
+
+  star: (x, y) => {
+    const cx = 10.5, cy = 11, outerR = 9.5, innerR = 4.2;
+    const points = [];
+    for (let i = 0; i < 10; i++) {
+      const angle = -Math.PI / 2 + i * Math.PI / 5;
+      const r = i % 2 === 0 ? outerR : innerR;
+      points.push([cx + r * Math.cos(angle), cy + r * Math.sin(angle)]);
+    }
+    let inside = false;
+    for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+      const [xi, yi] = points[i];
+      const [xj, yj] = points[j];
+      const intersect = ((yi > y) !== (yj > y)) &&
+        (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  },
+};
+
+// Minimal PNG encoder — ~50 lines, no deps. Used so we can generate icons
+// at runtime without bundling preset PNGs.
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(buf) {
+  let c = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+function pngChunk(type, data) {
+  const len = Buffer.alloc(4); len.writeUInt32BE(data.length, 0);
+  const typeBuf = Buffer.from(type, 'ascii');
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(Buffer.concat([typeBuf, data])), 0);
+  return Buffer.concat([len, typeBuf, data, crc]);
+}
+function makePNG(width, height, pixelFn) {
+  const sig = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; ihdr[9] = 6; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+  const rowBytes = 1 + width * 4;
+  const raw = Buffer.alloc(rowBytes * height);
+  for (let y = 0; y < height; y++) {
+    raw[y * rowBytes] = 0;
+    for (let x = 0; x < width; x++) {
+      const [r, g, b, a] = pixelFn(x, y);
+      const off = y * rowBytes + 1 + x * 4;
+      raw[off] = r; raw[off+1] = g; raw[off+2] = b; raw[off+3] = a;
+    }
+  }
+  const idat = zlib.deflateSync(raw);
+  return Buffer.concat([sig, pngChunk('IHDR', ihdr), pngChunk('IDAT', idat), pngChunk('IEND', Buffer.alloc(0))]);
+}
+
+// Tray icon — black on transparent (template image). Rendered at the requested
+// size by mapping each pixel back to logical 22-unit coords.
+function generateTrayPNG(presetId, size) {
+  const shape = ICON_PRESETS[presetId] || ICON_PRESETS.bars;
+  const scale = size / 22;
+  return makePNG(size, size, (x, y) => {
+    const lx = x / scale;
+    const ly = y / scale;
+    return shape(lx, ly) ? [0, 0, 0, 255] : [0, 0, 0, 0];
+  });
+}
+
+// Dock icon — dark shape on rounded cream tile (matches app theme).
+function generateDockPNG(presetId) {
+  const shape = ICON_PRESETS[presetId] || ICON_PRESETS.bars;
+  const size = 256;
+  const padding = 36;
+  const inner = size - padding * 2;
+  const cornerR = 50;
+  const bg = [245, 240, 232, 255];
+  const fg = [26, 26, 26, 255];
+  const transparent = [0, 0, 0, 0];
+  return makePNG(size, size, (x, y) => {
+    // Round-rect mask: cut corners outside the rounded shape
+    const inCorner =
+      (x < cornerR && y < cornerR && (x - cornerR) ** 2 + (y - cornerR) ** 2 > cornerR * cornerR) ||
+      (x >= size - cornerR && y < cornerR && (x - (size - cornerR - 1)) ** 2 + (y - cornerR) ** 2 > cornerR * cornerR) ||
+      (x < cornerR && y >= size - cornerR && (x - cornerR) ** 2 + (y - (size - cornerR - 1)) ** 2 > cornerR * cornerR) ||
+      (x >= size - cornerR && y >= size - cornerR && (x - (size - cornerR - 1)) ** 2 + (y - (size - cornerR - 1)) ** 2 > cornerR * cornerR);
+    if (inCorner) return transparent;
+    const lx = (x - padding) / inner * 22;
+    const ly = (y - padding) / inner * 22;
+    if (lx < 0 || lx > 22 || ly < 0 || ly > 22) return bg;
+    return shape(lx, ly) ? fg : bg;
+  });
+}
+
+function applyIconPreset(presetId) {
+  if (!ICON_PRESETS[presetId]) presetId = 'bars';
+  if (tray) {
+    const buf = generateTrayPNG(presetId, 44);
+    const img = nativeImage.createFromBuffer(buf, { scaleFactor: 2.0 });
+    img.setTemplateImage(true);
+    tray.setImage(img);
+  }
+  if (app.dock && app.dock.setIcon) {
+    const dockBuf = generateDockPNG(presetId);
+    app.dock.setIcon(nativeImage.createFromBuffer(dockBuf));
+  }
+}
+
+ipcMain.handle('app:setIconPreset', (_e, id) => {
+  if (typeof id !== 'string' || !ICON_PRESETS[id]) {
+    return { success: false, error: 'unknown preset' };
+  }
+  try { applyIconPreset(id); return { success: true }; }
+  catch (err) { return { success: false, error: err.message }; }
+});
+
+// Renderer asks for a preview thumbnail when rendering the picker. We
+// generate a slightly larger tray-style PNG and return as a data URL.
+ipcMain.handle('app:iconPreview', (_e, id) => {
+  if (typeof id !== 'string' || !ICON_PRESETS[id]) return null;
+  const buf = generateTrayPNG(id, 64);
+  return 'data:image/png;base64,' + buf.toString('base64');
+});
+
+ipcMain.handle('app:listIconPresets', () => Object.keys(ICON_PRESETS));
 
 // Data saves to: ~/Library/Application Support/LifeTracker Chronicles/data/lifetracker.json
 const DATA_DIR   = path.join(app.getPath('userData'), 'data');
@@ -669,12 +841,20 @@ app.whenReady().then(() => {
     app.setLoginItemSettings({ openAtLogin: true, openAsHidden: true });
   }
 
-  const iconPath = path.join(__dirname, 'public', 'trayTemplate.png');
-  const img = nativeImage.createFromPath(iconPath);
+  // Initial tray icon — generated from saved preset (default "bars").
+  const initialData = readData();
+  const initialPreset = initialData?.ui?.iconPreset || 'bars';
+  const initialBuf = generateTrayPNG(initialPreset, 44);
+  const img = nativeImage.createFromBuffer(initialBuf, { scaleFactor: 2.0 });
   img.setTemplateImage(true);
   tray = new Tray(img);
   tray.setToolTip('LifeTracker Chronicles');
-  refreshTrayFromDisk(readData());
+  // Apply matching dock icon now that `tray` exists (applyIconPreset checks it).
+  if (app.dock && app.dock.setIcon) {
+    const dockBuf = generateDockPNG(initialPreset);
+    app.dock.setIcon(nativeImage.createFromBuffer(dockBuf));
+  }
+  refreshTrayFromDisk(initialData);
 
   createMenuWindow();
 

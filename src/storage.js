@@ -48,8 +48,9 @@ export function safeMerge(saved) {
           tasksView: saved.ui.tasksView || "list",
           theme: saved.ui.theme,
           colors: safeColors(saved.ui.colors),
+          iconPreset: typeof saved.ui.iconPreset === "string" ? saved.ui.iconPreset : "bars",
         }
-      : { sidebarCollapsed: false, notifications: false, tasksView: "list", colors: { bg: null, text: null } },
+      : { sidebarCollapsed: false, notifications: false, tasksView: "list", colors: { bg: null, text: null }, iconPreset: "bars" },
   };
 }
 

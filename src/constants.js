@@ -96,7 +96,7 @@ export const DEFAULTS = {
   bodyMetrics: [],     // [{ id, date, weight, bodyFat, waist, notes }]
   journal: {},         // { "YYYY-MM-DD": { mood: 1-5, note: "" } }
   achievements: {},    // { achievementId: "YYYY-MM-DD earned on" }
-  ui: { sidebarCollapsed: false, notifications: false, tasksView: "list", colors: { bg: null, text: null } },
+  ui: { sidebarCollapsed: false, notifications: false, tasksView: "list", colors: { bg: null, text: null }, iconPreset: "bars" },
   scratchpad: "",   // free-form rich-text notes (HTML); persists across restarts
 };
 

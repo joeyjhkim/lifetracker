@@ -555,6 +555,13 @@ export default function App() {
     saveColors: (colors) => {
       upd(d => ({ ...d, ui: { ...(d.ui || {}), colors } }));
     },
+    saveIconPreset: (id) => {
+      upd(d => ({ ...d, ui: { ...(d.ui || {}), iconPreset: id } }));
+      // Apply live to tray + dock so the user sees the change immediately.
+      if (window.electronAPI?.setIconPreset) {
+        window.electronAPI.setIconPreset(id);
+      }
+    },
     saveScratchpad: (html) => {
       // Cap at ~500KB to prevent runaway state. Plenty for plain notes.
       const safe = typeof html === "string" && html.length < 500_000 ? html : "";
@@ -861,8 +868,10 @@ export default function App() {
             )}
             {modal.type === "theme" && (
               <ThemeModal current={data.ui?.colors || {}}
+                currentIconPreset={data.ui?.iconPreset || "bars"}
                 onSave={c => actions.saveColors(c)}
                 onReset={() => actions.resetColors()}
+                onSavePreset={id => actions.saveIconPreset(id)}
                 onClose={() => setModal(null)} />
             )}
             {modal.type === "scratchpad" && (

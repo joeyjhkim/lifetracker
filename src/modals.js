@@ -651,9 +651,40 @@ const DEFAULT_BG   = "#f5f0e8";
 const DEFAULT_TEXT = "#1a1a1a";
 const HEX_OK = (v) => /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v || "");
 
-export function ThemeModal({ current, onSave, onReset, onClose }) {
+// Friendly labels for icon presets — must match the ICON_PRESETS keys in main.js.
+const ICON_PRESET_LABELS = {
+  bars:   "Bars",
+  dot:    "Dot",
+  star:   "Star",
+  heart:  "Heart",
+  square: "Square",
+  L:      "Letter L",
+};
+
+export function ThemeModal({ current, currentIconPreset, onSave, onReset, onSavePreset, onClose }) {
   const [bg,   setBg]   = useState(current?.bg   || DEFAULT_BG);
   const [text, setText] = useState(current?.text || DEFAULT_TEXT);
+  const [presets, setPresets]       = useState([]);
+  const [previews, setPreviews]     = useState({});
+  const [activePreset, setActivePreset] = useState(currentIconPreset || "bars");
+
+  // Load preset list + thumbnails once on mount via IPC.
+  useEffect(() => {
+    if (!window.electronAPI?.listIconPresets) return;
+    window.electronAPI.listIconPresets().then(async (ids) => {
+      setPresets(ids);
+      const map = {};
+      for (const id of ids) {
+        map[id] = await window.electronAPI.getIconPreview(id);
+      }
+      setPreviews(map);
+    });
+  }, []);
+
+  const pickPreset = (id) => {
+    setActivePreset(id);
+    onSavePreset(id);
+  };
 
   const contrast = useMemo(() => {
     const lum = (hex) => {
@@ -708,6 +739,43 @@ export function ThemeModal({ current, onSave, onReset, onClose }) {
         <div style={{ flex: 1 }}>
           <div style={label}>TEXT</div>
           <div style={hint}>Default foreground for all readable text.</div>
+        </div>
+      </div>
+
+      {/* App icon picker — applies to dock + menu bar icon. Live, no rebuild. */}
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ ...label, marginBottom: 8 }}>APP ICON</div>
+        <div style={{ ...hint, marginBottom: 10 }}>
+          Changes the menu bar tray icon and the dock icon. Applied instantly.
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+          {presets.map(id => {
+            const isActive = id === activePreset;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => pickPreset(id)}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                  background: isActive ? "var(--text)" : "var(--bg-input)",
+                  color: isActive ? "var(--text-inverse)" : "var(--text)",
+                  border: `1px solid ${isActive ? "var(--text)" : "var(--border-strong)"}`,
+                  borderRadius: 10, padding: "10px 6px", cursor: "pointer",
+                  fontFamily: "'Playfair Display', serif", fontSize: 11,
+                  transition: "all 0.15s",
+                }}
+              >
+                {previews[id] ? (
+                  <img src={previews[id]} width={32} height={32} alt={id}
+                    style={{ filter: isActive ? "invert(1)" : "none" }} />
+                ) : (
+                  <div style={{ width: 32, height: 32 }} />
+                )}
+                <span>{ICON_PRESET_LABELS[id] || id}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

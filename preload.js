@@ -16,6 +16,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   importData:  ()     => ipcRenderer.invoke('data:import'),
   exportCSV:   (args) => ipcRenderer.invoke('data:exportCSV', args),
 
+  // Icon preset — change tray + dock icon live without rebuild.
+  setIconPreset:    (id) => ipcRenderer.invoke('app:setIconPreset', id),
+  getIconPreview:   (id) => ipcRenderer.invoke('app:iconPreview', id),
+  listIconPresets:  ()   => ipcRenderer.invoke('app:listIconPresets'),
+
   // Tray integration — renderer pushes summary stats to the tray menu
   // and listens for quick-action clicks from tray menu items.
   updateTray:   (stats) => ipcRenderer.send('tray:update', stats),
