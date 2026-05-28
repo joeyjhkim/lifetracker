@@ -53,8 +53,12 @@ public/
   tray-menu.html                # Tray popover (vanilla JS + inline styles)
   tray-popup.html               # Quick-log popups (expense/effort/etc.)
   trayTemplate.png              # 22x22 tray icon (template: black+alpha)
-  trayTemplate@2x.png           # 44x44 tray icon
-  icon.png, icon512.png         # Dock / app icons
+                                #   — fallback only; runtime icon is generated
+                                #   from the preset chosen in data.ui.iconPreset
+  trayTemplate@2x.png           # 44x44 tray icon (same fallback role)
+  icon.png, icon512.png         # Dock / app icons (only visible while app
+                                #   is fully quit; runtime overridden by
+                                #   app.dock.setIcon based on iconPreset)
 src/
   App.js                        # Root React component, sidebar, modal router
   modals.js                     # All modal components (expense, task, goal, theme, etc.)
@@ -97,6 +101,8 @@ scripts/afterPack.js            # electron-builder hook — ad-hoc signs the .ap
 **9. Time-zone-aware reset.** `App.js` runs a midnight timer that fires 5s after local midnight (always uses fresh `new Date()` so DST is handled). It re-runs `resetRecurringTasks(data.tasks)` so completed-yesterday tasks disappear from the tray and overdue counters tick. Don't add a competing timer — there should be one and only one.
 
 **10. Tray popover sync vs. user typing.** Both the tray's task notes editor and scratchpad section guard against destroying user input mid-edit. If a textarea inside the section has focus when a stats push arrives, that section's render is skipped. When you blur, auto-save fires and the next push lands cleanly. Don't remove these guards.
+
+**11. Icon presets are generated at runtime.** `main.js` contains an inline PNG encoder (CRC32 + zlib + chunk helpers — ~80 lines) and `ICON_PRESETS = { bars, dot, star, heart, square, L }` shape functions on a 22-unit logical canvas. `generateTrayPNG(presetId, size)` and `generateDockPNG(presetId)` produce buffers on demand; `applyIconPreset(id)` calls `tray.setImage(...)` and `app.dock.setIcon(...)` live. No bundled icon PNGs for the presets — adding a new preset means adding one shape function to `ICON_PRESETS` and (optionally) a label to `ICON_PRESET_LABELS` in `src/modals.js`. The preview thumbnails the picker shows come from the same main-process generator via the `app:iconPreview` IPC channel, so renderer and main share a single source of truth.
 
 ## Convention notes
 

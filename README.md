@@ -71,6 +71,23 @@ full year. Window size/position is cached separately at
   exercise history (sets × reps × weight).
 
 ### Power features
+- **Menu bar (tray) icon** — quick stats, mood/meal log, today/week/month
+  tasks with inline notes editor, days-overdue (red) and days-early
+  (green) pills, scratchpad section, and a Quick Log grid for one-click
+  expense/income/effort/exercise/task/body-metric entries.
+- **Scratchpad** — free-form rich-text notes with bold, italic,
+  underline, font size, bullet list. Available from the sidebar's
+  📝 NOTES button AND inline in the menu bar popover. Persists across
+  restarts.
+- **Appearance customization** — 🎨 button in the sidebar opens an
+  Appearance modal where you can:
+  - Change the background color
+  - Change the text color (with live contrast warning)
+  - Pick an app icon (bars / dot / star / heart / square / L) that
+    swaps both the dock icon and menu bar icon instantly, no rebuild
+- **Midnight rollover** — daily tasks reset at local midnight (not
+  UTC). Completed tasks disappear when their deadline passes; overdue
+  counters tick up nightly.
 - **Command palette** — `⌘K` fuzzy-search across pages, actions, and
   every expense/task/goal. Includes CSV export, JSON export/import,
   sidebar toggle.
